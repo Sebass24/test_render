@@ -60,6 +60,27 @@ public class ProductServiceImpl extends BaseServiceImpl<Product,Long> implements
         }
     }
 
+    @Transactional
+    public Product update(Product entity, MultipartFile image) throws ServiceException {
+        try {
+            if (entity.getId() == null) {
+                throw new ServiceException("La entidad a modificar debe contener un Id.");
+            }
+            if (entity.getImage() != null){
+                imageService.delete(entity.getImage().getId());
+            }
+            Image img = imageService.save(image);
+            entity.setImage(img);
+            List<ProductDetail> pd = entity.getProductDetails();
+            pd.forEach(productDetail -> productDetail.setProduct(entity));
+            Product product = productRepository.save(entity);
+
+            return product;
+        }catch (Exception e) {
+            throw new ServiceException(e.getMessage());
+        }
+    }
+
     @Override
     @Transactional
     public Product update(Product entity) throws ServiceException {
@@ -67,7 +88,6 @@ public class ProductServiceImpl extends BaseServiceImpl<Product,Long> implements
             if (entity.getId() == null) {
                 throw new ServiceException("La entidad a modificar debe contener un Id.");
             }
-            entity.setImage(null);
             List<ProductDetail> pd = entity.getProductDetails();
             pd.forEach(productDetail -> productDetail.setProduct(entity));
             Product product = productRepository.save(entity);

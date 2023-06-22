@@ -1,6 +1,7 @@
 package com.example.buensabor.Services.Impl;
 
 import com.example.buensabor.Models.Entity.User;
+import com.example.buensabor.Services.Email.MailService;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -34,6 +35,12 @@ public class Auth0Service {
 
     private String managementApiUrl = "https://dev-a6tntsf5lyicxsfn.us.auth0.com";
 
+    private MailService mailService;
+
+    public Auth0Service(MailService mailService) {
+        this.mailService = mailService;
+    }
+
     private String GetAccessToken() throws Exception {
         // Get an access token to authenticate with the Management API
         HttpClient httpClient = HttpClients.createDefault();
@@ -58,17 +65,18 @@ public class Auth0Service {
             // Assign the role to the user using the Management API
 
             userId = userId.replace("|","%7C");
+            roleId = roleId.replace("\n", "");
             HttpPost roleAssignmentRequest = new HttpPost(managementApiUrl + "/api/v2/users/" + userId + "/roles");
             roleAssignmentRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
             roleAssignmentRequest.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
             StringEntity roleAssignmentRequestBody = new StringEntity("{\"roles\": [\"" + roleId + "\"]}");
             roleAssignmentRequest.setEntity(roleAssignmentRequestBody);
-            httpClient.execute(roleAssignmentRequest);
+            String roleResponse = EntityUtils.toString(httpClient.execute(roleAssignmentRequest).getEntity());
 
             System.out.println("Role assigned successfully");
         } catch (Exception e) {
             System.err.println("Error assigning role: " + e.getMessage());
-            throw e;
+
         }
     }
 
@@ -124,21 +132,45 @@ public class Auth0Service {
 
             assignRoleToUser(auth0UserId,user.getRole().getAuth0RoleId());
 
+            //addMetadata(user.getAuth0Id(),user.getRole().getDescription());
+
+            String link = getPasswordChange(user.getAuth0Id());
+            mailService.sendPasswordTicket(user.getUserEmail(),link);
+
             System.out.println("User created successfully");
 
             return user;
-
-//            {
-//                "email": "seba.sulia@gmail.com",
-//                    "connection": "Username-Password-Authentication",
-//                    "password": "Secret1234"
-//            } Datos obligatorios para crear usuario
-
 
         } catch (Exception e) {
             System.err.println("Error creating user: " + e.getMessage());
             throw e;
         }
+    }
+
+    public void addMetadata(String id,String role) throws Exception{
+        // Get an access token to authenticate with the Management API
+        HttpClient httpClient = HttpClients.createDefault();
+        String accessToken = this.GetAccessToken();
+
+
+        //id = id.replace("|", "%7C");
+
+        HttpPatch addMetadataRequest = new HttpPatch(managementApiUrl + "/api/v2/users/" + id);
+        addMetadataRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        addMetadataRequest.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+        StringEntity addMetadataRequestBody = new StringEntity(
+                "{\"app_metadata\": {" +
+                        "\"role\": \"" + role +"\""+
+                        "}}");
+        addMetadataRequest.setEntity(addMetadataRequestBody);
+        HttpResponse matadataResponse = httpClient.execute(addMetadataRequest);
+
+        int statusCode = matadataResponse.getStatusLine().getStatusCode();
+
+        if (statusCode != 200) {
+            throw new Exception("Error actualizar usuario");
+        }
+
     }
 
     public String getUserConnectionTypeByAuth0Id(String id) throws Exception{
@@ -159,6 +191,29 @@ public class Auth0Service {
         String connection = first.getString("connection");
 
         return connection;
+    }
+
+    public String getPasswordChange(String id) throws Exception{
+        // Get an access token to authenticate with the Management API
+        HttpClient httpClient = HttpClients.createDefault();
+        String accessToken = this.GetAccessToken();
+
+
+        //id = id.replace("|", "%7C");
+
+        HttpPost changePassRequest = new HttpPost(managementApiUrl + "/api/v2/tickets/password-change");
+        changePassRequest.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        changePassRequest.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+        StringEntity roleAssignmentRequestBody = new StringEntity(
+                "{\"user_id\": \"" + id + "\"," +
+                        "\"client_id\": \"" + "smzKUEQwvdCTTg9RGvmKj9REsGRfweuK" +"\""+
+                        "}");
+        changePassRequest.setEntity(roleAssignmentRequestBody);
+        String passResponse = EntityUtils.toString(httpClient.execute(changePassRequest).getEntity());
+
+        String ticket = (new JSONObject(passResponse)).getString("ticket");
+
+        return ticket;
     }
 
     public User changePassword(User user) throws Exception {

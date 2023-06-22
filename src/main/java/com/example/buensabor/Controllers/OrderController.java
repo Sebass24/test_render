@@ -68,4 +68,15 @@ public class OrderController extends BaseControllerImpl<Order, OrderServiceImpl>
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("{\"error\":\"Error. Por favor intente luego\"}");
         }
     }
+
+    @PutMapping("add10/{orderId}")
+    public ResponseEntity<?> add10Min(@PathVariable Long orderId){
+        try {
+            service.addMinutesToOrder(orderId);
+            return ResponseEntity.status(HttpStatus.OK).body("{\"mesage\":\"Se agregaron 10 min\"}");
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("{\"error\":\"Error. Por favor intente luego\"}");
+        }
+    }
 }

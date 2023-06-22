@@ -17,6 +17,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,6 +61,17 @@ public class OrderServiceImpl extends BaseServiceImpl<Order,Long> implements Ord
             Date estimatedTime = calendar.getTime();
 
             entity.setEstimatedTime(estimatedTime);
+
+            AtomicBoolean onlyDrinks = new AtomicBoolean(true);
+            od.forEach(orderDetail -> {
+                if(!orderDetail.getProduct().getProductCategory().getDescription().equals("Bebidas")){
+                    onlyDrinks.set(false);
+                }
+            });
+            if(onlyDrinks.get()){
+                OrderStatus os = orderStatusService.findById(Long.valueOf(4));
+                entity.setOrderStatus(os);
+            }
 
             Order order = baseRepository.save(entity);
             return order;
@@ -242,6 +254,25 @@ public class OrderServiceImpl extends BaseServiceImpl<Order,Long> implements Ord
             System.out.println(e.getMessage());
         }
         return null;
+    }
+
+    public void addMinutesToOrder(Long id) throws Exception{
+        Order order = orderRepository.findById(id).get();
+
+        if (order != null) {
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(order.getEstimatedTime());
+
+            // Sumar 10 minutos
+            calendar.add(Calendar.MINUTE, 10);
+
+            // Obtener la nueva fecha sumada
+            Date addDate = calendar.getTime();
+
+            order.setEstimatedTime(addDate);
+
+            orderRepository.save(order);
+        }else throw new Exception();
     }
 
 }

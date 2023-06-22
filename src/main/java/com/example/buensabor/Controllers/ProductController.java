@@ -34,6 +34,19 @@ public class ProductController extends BaseControllerImpl<Product, ProductServic
         }
     }
 
+    @PutMapping(value="/update", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    public ResponseEntity<?> update(@RequestPart("Product") Product entity,@RequestPart(value = "Image",required = false) MultipartFile multipartFile){
+        try {
+            if (multipartFile != null){
+                return ResponseEntity.status(HttpStatus.OK).body(service.update(entity,multipartFile));
+            }else
+                return ResponseEntity.status(HttpStatus.OK).body(service.update(entity));
+        }
+        catch (Exception e){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("{\"error\":\"Error. Por favor intente luego\"}");
+        }
+    }
+
     @GetMapping("/category/{category}")
     public ResponseEntity<?> getByCategory(@PathVariable String category){
         try {
